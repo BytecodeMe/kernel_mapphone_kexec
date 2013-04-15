@@ -127,8 +127,8 @@ struct android_dev {
 	struct device *dev;
 
 	bool enabled;
-        int disable_depth;
-        struct mutex mutex;
+	int disable_depth;
+	struct mutex mutex;
 	bool connected;
 	bool sw_connected;
 	struct work_struct work;
@@ -188,8 +188,6 @@ static struct usb_configuration android_config_driver = {
 	.label		= "android",
 	.unbind		= android_unbind_config,
 	.bConfigurationValue = 1,
-	.bmAttributes	= USB_CONFIG_ATT_ONE | USB_CONFIG_ATT_SELFPOWER,
-	.bMaxPower	= 0xFA, /* 500ma */
 };
 
 static enum cpcap_accy cable_type = CPCAP_ACCY_NONE;
@@ -549,22 +547,23 @@ static void android_disable(struct android_dev *dev)
 /* Supported functions initialization */
 
 struct adb_data {
-       bool opened;
-       bool enabled;
+	bool opened;
+	bool enabled;
 };
 
 static int adb_function_init(struct android_usb_function *f, struct usb_composite_dev *cdev)
 {
-        f->config = kzalloc(sizeof(struct adb_data), GFP_KERNEL);
-        if (!f->config)
-                return -ENOMEM;
+	f->config = kzalloc(sizeof(struct adb_data), GFP_KERNEL);
+	if (!f->config)
+		return -ENOMEM;
+
 	return adb_setup();
 }
 
 static void adb_function_cleanup(struct android_usb_function *f)
 {
 	adb_cleanup();
-        kfree(f->config);
+	kfree(f->config);
 }
 
 static int adb_function_bind_config(struct android_usb_function *f, struct usb_configuration *c)
@@ -610,14 +609,14 @@ static void adb_ready_callback(void)
 	struct android_dev *dev = _android_dev;
 	struct adb_data *data = adb_function.config;
 
-        mutex_lock(&dev->mutex);
+	mutex_lock(&dev->mutex);
 
 	data->opened = true;
 
 	if (data->enabled)
 		android_enable(dev);
 
-        mutex_unlock(&dev->mutex);
+	mutex_unlock(&dev->mutex);
 }
 
 static void adb_closed_callback(void)
@@ -625,13 +624,14 @@ static void adb_closed_callback(void)
 	struct android_dev *dev = _android_dev;
 	struct adb_data *data = adb_function.config;
 
-        mutex_lock(&dev->mutex);
+	mutex_lock(&dev->mutex);
+
 	data->opened = false;
 
 	if (data->enabled)
 		android_disable(dev);
 
-        mutex_unlock(&dev->mutex);
+	mutex_unlock(&dev->mutex);
 }
 
 
@@ -1482,6 +1482,8 @@ static ssize_t enable_store(struct device *pdev, struct device_attribute *attr,
 
         mutex_lock(&dev->mutex);
 
+	mutex_lock(&dev->mutex);
+
 	sscanf(buff, "%d", &enabled);
 	printk("%s: set enable = %d; old enable = %d\n", __func__,
 			enabled, dev->enabled);
@@ -1566,7 +1568,8 @@ static ssize_t enable_store(struct device *pdev, struct device_attribute *attr,
 		pr_err("android_usb: already %s\n",
 				dev->enabled ? "enabled" : "disabled");
 	}
-        mutex_unlock(&dev->mutex);
+
+	mutex_unlock(&dev->mutex);
 	return size;
 }
 
@@ -1630,9 +1633,9 @@ field ## _show(struct device *dev, struct device_attribute *attr,	\
 }									\
 static ssize_t								\
 field ## _store(struct device *dev, struct device_attribute *attr,	\
-		const char *buf, size_t size)		       		\
+		const char *buf, size_t size)				\
 {									\
-	int value;					       		\
+	int value;							\
 	if (sscanf(buf, format_string, &value) == 1) {			\
 		device_desc.field = value;				\
 		return size;						\
@@ -1650,10 +1653,10 @@ field ## _show(struct device *dev, struct device_attribute *attr,	\
 }									\
 static ssize_t								\
 field ## _store(struct device *dev, struct device_attribute *attr,	\
-		const char *buf, size_t size)		       		\
+		const char *buf, size_t size)				\
 {									\
 	if (size >= sizeof(buffer)) return -EINVAL;			\
-	if (sscanf(buf, "%s", buffer) == 1) {			       	\
+	if (sscanf(buf, "%s", buffer) == 1) {				\
 		return size;						\
 	}								\
 	return -1;							\
@@ -1987,7 +1990,7 @@ static int __init init(void)
 	dev->functions = supported_functions;
 	INIT_LIST_HEAD(&dev->enabled_functions);
 	INIT_WORK(&dev->work, android_work);
-        mutex_init(&dev->mutex);
+    mutex_init(&dev->mutex);
 	INIT_WORK(&dev->enumeration_work, android_enumeration_work);
 
 	err = android_create_device(dev);
